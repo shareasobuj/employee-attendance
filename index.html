@@ -19,37 +19,26 @@ button{padding:10px 14px;border:none;border-radius:6px;cursor:pointer;font-weigh
 .csv{background:#17a2b8;color:#fff}
 .print{background:#ff9800;color:#fff}
 .logout{background:#e91e63;color:#fff}
-
 .table-wrap{width:100%;overflow-x:auto}
 table{width:100%;border-collapse:collapse;min-width:800px}
 th,td{padding:8px;border-bottom:1px solid #ddd;text-align:center;font-size:13px;white-space:nowrap}
 .status-present{color:green;font-weight:bold}
 .status-absent{color:red;font-weight:bold}
+.status-off{color:orange;font-weight:bold}
 .footer{text-align:center;margin-top:15px;font-weight:bold;font-size:16px}
 #authBox{max-width:400px;margin:40px auto;background:#fff;padding:20px;border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.3)}
 .hidden{display:none}
 .linkBtn{background:none;border:none;color:#007bff;cursor:pointer;text-decoration:underline;margin-top:10px}
-
-/* CARD VIEW */
 .card-list{display:none}
 .emp-card{background:#f7f9fc;border-radius:12px;padding:12px;margin-bottom:10px;box-shadow:0 4px 10px rgba(0,0,0,.08)}
 .emp-card h3{margin:0 0 6px 0;font-size:16px;color:#243b55}
 .card-row{font-size:13px;margin:2px 0}
 .card-actions{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
-
-@media(max-width:700px){
-  .top{flex-direction:column}
-  button{width:100%}
-  input,select{width:100%}
-  .container{margin:0;border-radius:0}
-  table{display:none}
-  .card-list{display:block}
-}
+@media(max-width:700px){.top{flex-direction:column}button{width:100%}input,select{width:100%}.container{margin:0;border-radius:0}table{display:none}.card-list{display:block}}
+@media print{body{background:#fff;color:#000}.top,.logout,.add-btn,.print,.csv{display:none}table,th,td{border:1px solid #000}table{width:100%;border-collapse:collapse}}
 </style>
 </head>
 <body>
-
-<!-- AUTH BOX -->
 <div id="authBox">
 <h2 id="authTitle" style="text-align:center">🔐 User Login</h2>
 <input id="email" placeholder="Email"><br><br>
@@ -57,12 +46,9 @@ th,td{padding:8px;border-bottom:1px solid #ddd;text-align:center;font-size:13px;
 <button id="authBtn" style="width:100%;background:#243b55;color:#fff" onclick="handleAuth()">Login</button>
 <button class="linkBtn" onclick="toggleAuth()" id="toggleText">New user? Sign up</button>
 </div>
-
-<!-- APP -->
 <div id="app" class="hidden">
 <div class="container">
 <h1>👨‍💼 Employee Attendance Pro Max</h1>
-
 <div class="top">
 <input id="empName" placeholder="Employee Name">
 <input id="empDept" placeholder="Department">
@@ -73,43 +59,28 @@ th,td{padding:8px;border-bottom:1px solid #ddd;text-align:center;font-size:13px;
 <option value="all">All</option>
 <option value="Present">Present</option>
 <option value="Absent">Absent</option>
+<option value="Off">Off</option>
 </select>
 <input type="month" id="monthFilter" onchange="render()" title="Select Month">
 <button class="print" onclick="printMonthly()">🖨️ Print Monthly Report</button>
 <button class="csv" onclick="downloadCSV()">📥 CSV</button>
 <button class="logout" onclick="logout()">🚪 Logout</button>
 </div>
-
 <div class="table-wrap">
 <table>
 <thead>
 <tr>
-<th>ID</th>
-<th>Name</th>
-<th>Dept</th>
-<th>Date</th>
-<th>Check In</th>
-<th>Check Out</th>
-<th>Status</th>
-<th>Action</th>
+<th>ID</th><th>Name</th><th>Dept</th><th>Date</th><th>Check In</th><th>Check Out</th><th>Status</th><th>Action</th>
 </tr>
 </thead>
 <tbody id="empList"></tbody>
 </table>
 </div>
-
 <div id="cardList" class="card-list"></div>
-
-<div class="footer">
-Present: <span id="presentCount">0</span> |
-Absent: <span id="absentCount">0</span>
-</div>
-
+<div class="footer">Present: <span id="presentCount">0</span> | Absent: <span id="absentCount">0</span></div>
 </div>
 </div>
-
 <script>
-// ===== USER AUTH =====
 let isSignup=false;
 let users=JSON.parse(localStorage.getItem('users'))||[];
 function toggleAuth(){isSignup=!isSignup;authTitle.innerText=isSignup?'📝 User Sign Up':'🔐 User Login';authBtn.innerText=isSignup?'Sign Up':'Login';toggleText.innerText=isSignup?'Already user? Login':'New user? Sign up';}
@@ -118,16 +89,19 @@ function logout(){localStorage.removeItem('loggedUser');location.reload()}
 function showApp(){authBox.classList.add('hidden');app.classList.remove('hidden')}
 if(localStorage.getItem('loggedUser')) showApp();
 
-// ===== DATA =====
 let employees=JSON.parse(localStorage.getItem('employees_pro'))||[];
+let bdHolidays=["2026-02-21","2026-03-17","2026-03-26","2026-04-14","2026-05-01"];
 function save(){localStorage.setItem('employees_pro',JSON.stringify(employees))}
-function addEmployee(){let n=empName.value.trim();let d=empDept.value.trim();let date=attDate.value;if(!n||!d||!date)return alert('সব তথ্য দিন');employees.push({id:Date.now(),name:n,dept:d,date,status:'Absent',in:'--',out:'--'});empName.value='';empDept.value='';save();render();}
+function addEmployee(){let n=empName.value.trim();let d=empDept.value.trim();let date=attDate.value;if(!n||!d||!date)return alert('সব তথ্য দিন');
+let day=new Date(date).getDay();
+let status='Absent';
+if(day===5||day===6||bdHolidays.includes(date)) status='Off';
+employees.push({id:Date.now(),name:n,dept:d,date,status:status,in:'--',out:'--'});empName.value='';empDept.value='';save();render();}
 function markPresent(id){let e=employees.find(x=>x.id===id);e.status='Present';e.in=new Date().toLocaleTimeString();save();render()}
 function markAbsent(id){let e=employees.find(x=>x.id===id);e.status='Absent';save();render()}
 function checkOut(id){let e=employees.find(x=>x.id===id);e.out=new Date().toLocaleTimeString();save();render()}
 function del(id){if(confirm('Delete করবেন?')){employees=employees.filter(x=>x.id!==id);save();render()}}
 function matchMonth(dateStr,monthVal){if(!monthVal) return true;return dateStr.startsWith(monthVal);}
-
 function render(){
  let s=search.value.toLowerCase();
  let f=filter.value;
@@ -138,25 +112,21 @@ function render(){
  if(!e.name.toLowerCase().includes(s)&&!e.dept.toLowerCase().includes(s))return;
  if(f!=='all'&&e.status!==f)return;
  if(!matchMonth(e.date,m)) return;
- if(e.status==='Present')p++;else a++;
- empList.innerHTML+=`<tr><td>${e.id}</td><td>${e.name}</td><td>${e.dept}</td><td>${e.date}</td><td>${e.in}</td><td>${e.out}</td><td class="${e.status==='Present'?'status-present':'status-absent'}">${e.status}</td><td><button class="present" onclick="markPresent(${e.id})">In</button><button class="absent" onclick="markAbsent(${e.id})">Absent</button><button class="csv" onclick="checkOut(${e.id})">Out</button><button class="delete" onclick="del(${e.id})">🗑️</button></td></tr>`;
+ if(e.status==='Present')p++;else if(e.status==='Absent')a++;
+ empList.innerHTML+=`<tr><td>${e.id}</td><td>${e.name}</td><td>${e.dept}</td><td>${e.date}</td><td>${e.in}</td><td>${e.out}</td><td class="${e.status==='Present'?'status-present':e.status==='Off'?'status-off':'status-absent'}">${e.status}</td><td><button class="present" onclick="markPresent(${e.id})">In</button><button class="absent" onclick="markAbsent(${e.id})">Absent</button><button class="csv" onclick="checkOut(${e.id})">Out</button><button class="delete" onclick="del(${e.id})">🗑️</button></td></tr>`;
  cardList.innerHTML+=`<div class="emp-card"><h3>${e.name}</h3><div class="card-row">Dept: ${e.dept}</div><div class="card-row">Date: ${e.date}</div><div class="card-row">In: ${e.in} | Out: ${e.out}</div><div class="card-row">Status: <b>${e.status}</b></div><div class="card-actions"><button class="present" onclick="markPresent(${e.id})">In</button><button class="absent" onclick="markAbsent(${e.id})">Absent</button><button class="csv" onclick="checkOut(${e.id})">Out</button><button class="delete" onclick="del(${e.id})">🗑️</button></div></div>`;
  });
  presentCount.innerText=p;
  absentCount.innerText=a;
 }
-
-function printMonthly(){
- if(!monthFilter.value) return alert('আগে মাস সিলেক্ট করুন');
- const printWindow=window.open('','PrintWindow');
- let content='<h2>Monthly Attendance Report: '+monthFilter.value+'</h2>'+document.querySelector('.table-wrap').innerHTML;
- printWindow.document.write(content);
- printWindow.document.close();
- printWindow.focus();
- printWindow.print();
- printWindow.close();
+function printMonthly(){if(!monthFilter.value) return alert('আগে মাস সিলেক্ট করুন');
+ let printContent='<h2>Monthly Attendance Report: '+monthFilter.value+'</h2>'+document.querySelector('.table-wrap').innerHTML;
+ let newWin=window.open('','_blank');
+ newWin.document.write('<html><head><title>Monthly Report</title><style>body{font-family:Arial}table,th,td{border:1px solid #000;border-collapse:collapse;padding:5px;text-align:center}h2{text-align:center}</style></head><body>'+printContent+'</body></html>');
+ newWin.document.close();
+ newWin.focus();
+ newWin.print();
 }
-
 function downloadCSV(){let csv='ID,Name,Department,Date,CheckIn,CheckOut,Status\n';employees.forEach(e=>{csv+=`${e.id},${e.name},${e.dept},${e.date},${e.in},${e.out},${e.status}\n`;});let blob=new Blob([csv],{type:'text/csv'});let a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='attendance.csv';a.click();}
 render();
 </script>
