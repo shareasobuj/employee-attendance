@@ -7,11 +7,11 @@
 
 <style>
 body{font-family:Arial;margin:0;background:linear-gradient(135deg,#141e30,#243b55);color:#333}
-.container{max-width:1100px;margin:20px auto;background:#fff;padding:20px;border-radius:14px;box-shadow:0 12px 30px rgba(0,0,0,.3)}
-h1{text-align:center;color:#243b55}
+.container{max-width:1100px;margin:10px auto;background:#fff;padding:15px;border-radius:14px;box-shadow:0 12px 30px rgba(0,0,0,.3)}
+h1{text-align:center;color:#243b55;font-size:clamp(20px,4vw,28px)}
 .top{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:15px}
-input,select{padding:10px;border-radius:6px;border:1px solid #ccc;flex:1}
-button{padding:10px 14px;border:none;border-radius:6px;cursor:pointer;font-weight:bold}
+input,select{padding:10px;border-radius:6px;border:1px solid #ccc;flex:1;min-width:140px;font-size:14px}
+button{padding:10px 14px;border:none;border-radius:6px;cursor:pointer;font-weight:bold;font-size:14px}
 .add-btn{background:#28a745;color:#fff}
 .present{background:#007bff;color:#fff}
 .absent{background:#dc3545;color:#fff}
@@ -19,15 +19,32 @@ button{padding:10px 14px;border:none;border-radius:6px;cursor:pointer;font-weigh
 .csv{background:#17a2b8;color:#fff}
 .print{background:#ff9800;color:#fff}
 .logout{background:#e91e63;color:#fff}
-table{width:100%;border-collapse:collapse}
-th,td{padding:10px;border-bottom:1px solid #ddd;text-align:center;font-size:14px}
+
+.table-wrap{width:100%;overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:800px}
+th,td{padding:8px;border-bottom:1px solid #ddd;text-align:center;font-size:13px;white-space:nowrap}
 .status-present{color:green;font-weight:bold}
 .status-absent{color:red;font-weight:bold}
-.footer{text-align:center;margin-top:15px;font-weight:bold;font-size:18px}
-#authBox{max-width:400px;margin:60px auto;background:#fff;padding:25px;border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.3)}
+.footer{text-align:center;margin-top:15px;font-weight:bold;font-size:16px}
+#authBox{max-width:400px;margin:40px auto;background:#fff;padding:20px;border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.3)}
 .hidden{display:none}
 .linkBtn{background:none;border:none;color:#007bff;cursor:pointer;text-decoration:underline;margin-top:10px}
-@media(max-width:700px){.top{flex-direction:column}}
+
+/* CARD VIEW */
+.card-list{display:none}
+.emp-card{background:#f7f9fc;border-radius:12px;padding:12px;margin-bottom:10px;box-shadow:0 4px 10px rgba(0,0,0,.08)}
+.emp-card h3{margin:0 0 6px 0;font-size:16px;color:#243b55}
+.card-row{font-size:13px;margin:2px 0}
+.card-actions{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+
+@media(max-width:700px){
+  .top{flex-direction:column}
+  button{width:100%}
+  input,select{width:100%}
+  .container{margin:0;border-radius:0}
+  table{display:none}
+  .card-list{display:block}
+}
 </style>
 </head>
 <body>
@@ -57,11 +74,13 @@ th,td{padding:10px;border-bottom:1px solid #ddd;text-align:center;font-size:14px
 <option value="Present">Present</option>
 <option value="Absent">Absent</option>
 </select>
+<input type="month" id="monthFilter" onchange="render()" title="Select Month">
+<button class="print" onclick="printMonthly()">🖨️ Print Monthly Report</button>
 <button class="csv" onclick="downloadCSV()">📥 CSV</button>
-<button class="print" onclick="window.print()">🖨️ Print</button>
 <button class="logout" onclick="logout()">🚪 Logout</button>
 </div>
 
+<div class="table-wrap">
 <table>
 <thead>
 <tr>
@@ -77,6 +96,9 @@ th,td{padding:10px;border-bottom:1px solid #ddd;text-align:center;font-size:14px
 </thead>
 <tbody id="empList"></tbody>
 </table>
+</div>
+
+<div id="cardList" class="card-list"></div>
 
 <div class="footer">
 Present: <span id="presentCount">0</span> |
@@ -87,102 +109,55 @@ Absent: <span id="absentCount">0</span>
 </div>
 
 <script>
-// ===== USER AUTH SYSTEM =====
+// ===== USER AUTH =====
 let isSignup=false;
 let users=JSON.parse(localStorage.getItem('users'))||[];
-
-function toggleAuth(){
-  isSignup=!isSignup;
-  document.getElementById('authTitle').innerText=isSignup?'📝 User Sign Up':'🔐 User Login';
-  document.getElementById('authBtn').innerText=isSignup?'Sign Up':'Login';
-  document.getElementById('toggleText').innerText=isSignup?'Already user? Login':'New user? Sign up';
-}
-
-function handleAuth(){
-  const email=document.getElementById('email').value.trim();
-  const pass=document.getElementById('password').value.trim();
-  if(!email||!pass) return alert('Email & Password দিন');
-
-  if(isSignup){
-    if(users.find(u=>u.email===email)) return alert('User already exists');
-    users.push({email,password:pass});
-    localStorage.setItem('users',JSON.stringify(users));
-    alert('Signup successful! Now login');
-    toggleAuth();
-  }else{
-    const user=users.find(u=>u.email===email && u.password===pass);
-    if(!user) return alert('Invalid login');
-    localStorage.setItem('loggedUser',email);
-    showApp();
-  }
-}
-
+function toggleAuth(){isSignup=!isSignup;authTitle.innerText=isSignup?'📝 User Sign Up':'🔐 User Login';authBtn.innerText=isSignup?'Sign Up':'Login';toggleText.innerText=isSignup?'Already user? Login':'New user? Sign up';}
+function handleAuth(){const email=document.getElementById('email').value.trim();const pass=document.getElementById('password').value.trim();if(!email||!pass)return alert('Email & Password দিন');if(isSignup){if(users.find(u=>u.email===email))return alert('User already exists');users.push({email,password:pass});localStorage.setItem('users',JSON.stringify(users));alert('Signup successful! Now login');toggleAuth();}else{const user=users.find(u=>u.email===email && u.password===pass);if(!user)return alert('Invalid login');localStorage.setItem('loggedUser',email);showApp();}}
 function logout(){localStorage.removeItem('loggedUser');location.reload()}
-function showApp(){
-  document.getElementById('authBox').classList.add('hidden');
-  document.getElementById('app').classList.remove('hidden');
-}
+function showApp(){authBox.classList.add('hidden');app.classList.remove('hidden')}
 if(localStorage.getItem('loggedUser')) showApp();
 
-// ===== ATTENDANCE DATA =====
+// ===== DATA =====
 let employees=JSON.parse(localStorage.getItem('employees_pro'))||[];
 function save(){localStorage.setItem('employees_pro',JSON.stringify(employees))}
-
-function addEmployee(){
- let n=document.getElementById('empName').value.trim();
- let d=document.getElementById('empDept').value.trim();
- let date=document.getElementById('attDate').value;
- if(!n||!d||!date) return alert('সব তথ্য দিন');
- employees.push({id:Date.now(),name:n,dept:d,date,status:'Absent',in:'--',out:'--'});
- document.getElementById('empName').value='';
- document.getElementById('empDept').value='';
- save();render();
-}
-
+function addEmployee(){let n=empName.value.trim();let d=empDept.value.trim();let date=attDate.value;if(!n||!d||!date)return alert('সব তথ্য দিন');employees.push({id:Date.now(),name:n,dept:d,date,status:'Absent',in:'--',out:'--'});empName.value='';empDept.value='';save();render();}
 function markPresent(id){let e=employees.find(x=>x.id===id);e.status='Present';e.in=new Date().toLocaleTimeString();save();render()}
 function markAbsent(id){let e=employees.find(x=>x.id===id);e.status='Absent';save();render()}
 function checkOut(id){let e=employees.find(x=>x.id===id);e.out=new Date().toLocaleTimeString();save();render()}
 function del(id){if(confirm('Delete করবেন?')){employees=employees.filter(x=>x.id!==id);save();render()}}
+function matchMonth(dateStr,monthVal){if(!monthVal) return true;return dateStr.startsWith(monthVal);}
 
 function render(){
- let s=document.getElementById('search').value.toLowerCase();
- let f=document.getElementById('filter').value;
- let empList=document.getElementById('empList');
- empList.innerHTML='';
+ let s=search.value.toLowerCase();
+ let f=filter.value;
+ let m=monthFilter.value;
+ empList.innerHTML=''; cardList.innerHTML='';
  let p=0,a=0;
  employees.forEach(e=>{
-   if(!e.name.toLowerCase().includes(s)&&!e.dept.toLowerCase().includes(s))return;
-   if(f!=='all'&&e.status!==f)return;
-   if(e.status==='Present')p++;else a++;
-   empList.innerHTML+=`<tr>
-   <td>${e.id}</td>
-   <td>${e.name}</td>
-   <td>${e.dept}</td>
-   <td>${e.date}</td>
-   <td>${e.in}</td>
-   <td>${e.out}</td>
-   <td class="${e.status==='Present'?'status-present':'status-absent'}">${e.status}</td>
-   <td>
-     <button class="present" onclick="markPresent(${e.id})">In</button>
-     <button class="absent" onclick="markAbsent(${e.id})">Absent</button>
-     <button class="csv" onclick="checkOut(${e.id})">Out</button>
-     <button class="delete" onclick="del(${e.id})">🗑️</button>
-   </td></tr>`;
+ if(!e.name.toLowerCase().includes(s)&&!e.dept.toLowerCase().includes(s))return;
+ if(f!=='all'&&e.status!==f)return;
+ if(!matchMonth(e.date,m)) return;
+ if(e.status==='Present')p++;else a++;
+ empList.innerHTML+=`<tr><td>${e.id}</td><td>${e.name}</td><td>${e.dept}</td><td>${e.date}</td><td>${e.in}</td><td>${e.out}</td><td class="${e.status==='Present'?'status-present':'status-absent'}">${e.status}</td><td><button class="present" onclick="markPresent(${e.id})">In</button><button class="absent" onclick="markAbsent(${e.id})">Absent</button><button class="csv" onclick="checkOut(${e.id})">Out</button><button class="delete" onclick="del(${e.id})">🗑️</button></td></tr>`;
+ cardList.innerHTML+=`<div class="emp-card"><h3>${e.name}</h3><div class="card-row">Dept: ${e.dept}</div><div class="card-row">Date: ${e.date}</div><div class="card-row">In: ${e.in} | Out: ${e.out}</div><div class="card-row">Status: <b>${e.status}</b></div><div class="card-actions"><button class="present" onclick="markPresent(${e.id})">In</button><button class="absent" onclick="markAbsent(${e.id})">Absent</button><button class="csv" onclick="checkOut(${e.id})">Out</button><button class="delete" onclick="del(${e.id})">🗑️</button></div></div>`;
  });
- document.getElementById('presentCount').innerText=p;
- document.getElementById('absentCount').innerText=a;
+ presentCount.innerText=p;
+ absentCount.innerText=a;
 }
 
-function downloadCSV(){
- let csv='ID,Name,Department,Date,CheckIn,CheckOut,Status\n';
- employees.forEach(e=>{csv+=`${e.id},${e.name},${e.dept},${e.date},${e.in},${e.out},${e.status}\n`;});
- let blob=new Blob([csv],{type:'text/csv'});
- let a=document.createElement('a');
- a.href=URL.createObjectURL(blob);
- a.download='attendance.csv';
- a.click();
+function printMonthly(){
+ if(!monthFilter.value) return alert('আগে মাস সিলেক্ট করুন');
+ const printWindow=window.open('','PrintWindow');
+ let content='<h2>Monthly Attendance Report: '+monthFilter.value+'</h2>'+document.querySelector('.table-wrap').innerHTML;
+ printWindow.document.write(content);
+ printWindow.document.close();
+ printWindow.focus();
+ printWindow.print();
+ printWindow.close();
 }
 
+function downloadCSV(){let csv='ID,Name,Department,Date,CheckIn,CheckOut,Status\n';employees.forEach(e=>{csv+=`${e.id},${e.name},${e.dept},${e.date},${e.in},${e.out},${e.status}\n`;});let blob=new Blob([csv],{type:'text/csv'});let a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='attendance.csv';a.click();}
 render();
 </script>
 </body>
