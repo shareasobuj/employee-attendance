@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Employee Attendance Pro Max</title>
+
+<style>
+body{font-family:Arial;margin:0;background:linear-gradient(135deg,#141e30,#243b55);color:#333}
+.container{max-width:1100px;margin:20px auto;background:#fff;padding:20px;border-radius:14px;box-shadow:0 12px 30px rgba(0,0,0,.3)}
+h1{text-align:center;color:#243b55}
+.top{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:15px}
+input,select{padding:10px;border-radius:6px;border:1px solid #ccc;flex:1}
+button{padding:10px 14px;border:none;border-radius:6px;cursor:pointer;font-weight:bold}
+.add-btn{background:#28a745;color:#fff}
+.present{background:#007bff;color:#fff}
+.absent{background:#dc3545;color:#fff}
+.delete{background:#6c757d;color:#fff}
+.csv{background:#17a2b8;color:#fff}
+.print{background:#ff9800;color:#fff}
+.logout{background:#e91e63;color:#fff}
+table{width:100%;border-collapse:collapse}
+th,td{padding:10px;border-bottom:1px solid #ddd;text-align:center;font-size:14px}
+.status-present{color:green;font-weight:bold}
+.status-absent{color:red;font-weight:bold}
+.footer{text-align:center;margin-top:15px;font-weight:bold;font-size:18px}
+#loginBox{max-width:400px;margin:80px auto;background:#fff;padding:30px;border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.3)}
+.hidden{display:none}
+@media(max-width:700px){.top{flex-direction:column}}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginBox">
+<h2 style="text-align:center">🔐 Admin Login</h2>
+<input id="user" placeholder="Username (admin)"><br><br>
+<input id="pass" type="password" placeholder="Password (1234)"><br><br>
+<button style="width:100%;background:#243b55;color:#fff" onclick="login()">Login</button>
+</div>
+
+<!-- APP -->
+<div id="app" class="hidden">
+<div class="container">
+<h1>👨‍💼 Employee Attendance Pro Max</h1>
+
+<div class="top">
+<input id="empName" placeholder="Employee Name">
+<input id="empDept" placeholder="Department">
+<input type="date" id="attDate">
+<button class="add-btn" onclick="addEmployee()">➕ Add</button>
+<input id="search" placeholder="🔍 Search" onkeyup="render()">
+<select id="filter" onchange="render()">
+<option value="all">All</option>
+<option value="Present">Present</option>
+<option value="Absent">Absent</option>
+</select>
+<button class="csv" onclick="downloadCSV()">📥 CSV</button>
+<button class="print" onclick="window.print()">🖨️ Print</button>
+<button class="logout" onclick="logout()">🚪 Logout</button>
+</div>
+
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Name</th>
+<th>Dept</th>
+<th>Date</th>
+<th>Check In</th>
+<th>Check Out</th>
+<th>Status</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody id="empList"></tbody>
+</table>
+
+<div class="footer">
+Present: <span id="presentCount">0</span> |
+Absent: <span id="absentCount">0</span>
+</div>
+
+</div>
+</div>
+
+<script>
+// ===== LOGIN =====
+function login(){
+  if(user.value==='admin' && pass.value==='1234'){
+    localStorage.setItem('loggedIn','yes');
+    showApp();
+  }else alert('Wrong login');
+}
+function logout(){localStorage.removeItem('loggedIn');location.reload()}
+function showApp(){loginBox.classList.add('hidden');app.classList.remove('hidden')}
+if(localStorage.getItem('loggedIn')==='yes') showApp();
+
+// ===== DATA =====
+let employees=JSON.parse(localStorage.getItem('employees_pro'))||[];
+function save(){localStorage.setItem('employees_pro',JSON.stringify(employees))}
+
+function addEmployee(){
+ let n=empName.value.trim();
+ let d=empDept.value.trim();
+ let date=attDate.value;
+ if(!n||!d||!date) return alert('সব তথ্য দিন');
+ employees.push({
+   id:Date.now(),name:n,dept:d,date,
+   status:'Absent',in:'--',out:'--'
+ });
+ empName.value='';empDept.value='';save();render();
+}
+
+function markPresent(id){let e=employees.find(x=>x.id===id);e.status='Present';e.in=new Date().toLocaleTimeString();save();render()}
+function markAbsent(id){let e=employees.find(x=>x.id===id);e.status='Absent';save();render()}
+function checkOut(id){let e=employees.find(x=>x.id===id);e.out=new Date().toLocaleTimeString();save();render()}
+function del(id){if(confirm('Delete করবেন?')){employees=employees.filter(x=>x.id!==id);save();render()}}
+
+function render(){
+ let s=search.value.toLowerCase();
+ let f=filter.value;
+ empList.innerHTML='';
+ let p=0,a=0;
+ employees.forEach(e=>{
+   if(!e.name.toLowerCase().includes(s)&&!e.dept.toLowerCase().includes(s))return;
+   if(f!=='all'&&e.status!==f)return;
+   if(e.status==='Present')p++;else a++;
+   empList.innerHTML+=`<tr>
+   <td>${e.id}</td>
+   <td>${e.name}</td>
+   <td>${e.dept}</td>
+   <td>${e.date}</td>
+   <td>${e.in}</td>
+   <td>${e.out}</td>
+   <td class="${e.status==='Present'?'status-present':'status-absent'}">${e.status}</td>
+   <td>
+     <button class="present" onclick="markPresent(${e.id})">In</button>
+     <button class="absent" onclick="markAbsent(${e.id})">Absent</button>
+     <button class="csv" onclick="checkOut(${e.id})">Out</button>
+     <button class="delete" onclick="del(${e.id})">🗑️</button>
+   </td></tr>`;
+ });
+ presentCount.innerText=p;absentCount.innerText=a;
+}
+
+function downloadCSV(){
+ let csv='ID,Name,Department,Date,CheckIn,CheckOut,Status\n';
+ employees.forEach(e=>{
+   csv+=`${e.id},${e.name},${e.dept},${e.date},${e.in},${e.out},${e.status}\n`;
+ });
+ let blob=new Blob([csv],{type:'text/csv'});
+ let a=document.createElement('a');
+ a.href=URL.createObjectURL(blob);
+ a.download='attendance.csv';
+ a.click();
+}
+
+render();
+</script>
+</body>
+</html>
