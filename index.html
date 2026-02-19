@@ -24,19 +24,21 @@ th,td{padding:10px;border-bottom:1px solid #ddd;text-align:center;font-size:14px
 .status-present{color:green;font-weight:bold}
 .status-absent{color:red;font-weight:bold}
 .footer{text-align:center;margin-top:15px;font-weight:bold;font-size:18px}
-#loginBox{max-width:400px;margin:80px auto;background:#fff;padding:30px;border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.3)}
+#authBox{max-width:400px;margin:60px auto;background:#fff;padding:25px;border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.3)}
 .hidden{display:none}
+.linkBtn{background:none;border:none;color:#007bff;cursor:pointer;text-decoration:underline;margin-top:10px}
 @media(max-width:700px){.top{flex-direction:column}}
 </style>
 </head>
 <body>
 
-<!-- LOGIN -->
-<div id="loginBox">
-<h2 style="text-align:center">🔐 Admin Login</h2>
-<input id="user" placeholder="Username (admin)"><br><br>
-<input id="pass" type="password" placeholder="Password (1234)"><br><br>
-<button style="width:100%;background:#243b55;color:#fff" onclick="login()">Login</button>
+<!-- AUTH BOX -->
+<div id="authBox">
+<h2 id="authTitle" style="text-align:center">🔐 User Login</h2>
+<input id="email" placeholder="Email"><br><br>
+<input id="password" type="password" placeholder="Password"><br><br>
+<button id="authBtn" style="width:100%;background:#243b55;color:#fff" onclick="handleAuth()">Login</button>
+<button class="linkBtn" onclick="toggleAuth()" id="toggleText">New user? Sign up</button>
 </div>
 
 <!-- APP -->
@@ -85,31 +87,56 @@ Absent: <span id="absentCount">0</span>
 </div>
 
 <script>
-// ===== LOGIN =====
-function login(){
-  if(user.value==='admin' && pass.value==='1234'){
-    localStorage.setItem('loggedIn','yes');
-    showApp();
-  }else alert('Wrong login');
-}
-function logout(){localStorage.removeItem('loggedIn');location.reload()}
-function showApp(){loginBox.classList.add('hidden');app.classList.remove('hidden')}
-if(localStorage.getItem('loggedIn')==='yes') showApp();
+// ===== USER AUTH SYSTEM =====
+let isSignup=false;
+let users=JSON.parse(localStorage.getItem('users'))||[];
 
-// ===== DATA =====
+function toggleAuth(){
+  isSignup=!isSignup;
+  document.getElementById('authTitle').innerText=isSignup?'📝 User Sign Up':'🔐 User Login';
+  document.getElementById('authBtn').innerText=isSignup?'Sign Up':'Login';
+  document.getElementById('toggleText').innerText=isSignup?'Already user? Login':'New user? Sign up';
+}
+
+function handleAuth(){
+  const email=document.getElementById('email').value.trim();
+  const pass=document.getElementById('password').value.trim();
+  if(!email||!pass) return alert('Email & Password দিন');
+
+  if(isSignup){
+    if(users.find(u=>u.email===email)) return alert('User already exists');
+    users.push({email,password:pass});
+    localStorage.setItem('users',JSON.stringify(users));
+    alert('Signup successful! Now login');
+    toggleAuth();
+  }else{
+    const user=users.find(u=>u.email===email && u.password===pass);
+    if(!user) return alert('Invalid login');
+    localStorage.setItem('loggedUser',email);
+    showApp();
+  }
+}
+
+function logout(){localStorage.removeItem('loggedUser');location.reload()}
+function showApp(){
+  document.getElementById('authBox').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+}
+if(localStorage.getItem('loggedUser')) showApp();
+
+// ===== ATTENDANCE DATA =====
 let employees=JSON.parse(localStorage.getItem('employees_pro'))||[];
 function save(){localStorage.setItem('employees_pro',JSON.stringify(employees))}
 
 function addEmployee(){
- let n=empName.value.trim();
- let d=empDept.value.trim();
- let date=attDate.value;
+ let n=document.getElementById('empName').value.trim();
+ let d=document.getElementById('empDept').value.trim();
+ let date=document.getElementById('attDate').value;
  if(!n||!d||!date) return alert('সব তথ্য দিন');
- employees.push({
-   id:Date.now(),name:n,dept:d,date,
-   status:'Absent',in:'--',out:'--'
- });
- empName.value='';empDept.value='';save();render();
+ employees.push({id:Date.now(),name:n,dept:d,date,status:'Absent',in:'--',out:'--'});
+ document.getElementById('empName').value='';
+ document.getElementById('empDept').value='';
+ save();render();
 }
 
 function markPresent(id){let e=employees.find(x=>x.id===id);e.status='Present';e.in=new Date().toLocaleTimeString();save();render()}
@@ -118,8 +145,9 @@ function checkOut(id){let e=employees.find(x=>x.id===id);e.out=new Date().toLoca
 function del(id){if(confirm('Delete করবেন?')){employees=employees.filter(x=>x.id!==id);save();render()}}
 
 function render(){
- let s=search.value.toLowerCase();
- let f=filter.value;
+ let s=document.getElementById('search').value.toLowerCase();
+ let f=document.getElementById('filter').value;
+ let empList=document.getElementById('empList');
  empList.innerHTML='';
  let p=0,a=0;
  employees.forEach(e=>{
@@ -141,14 +169,13 @@ function render(){
      <button class="delete" onclick="del(${e.id})">🗑️</button>
    </td></tr>`;
  });
- presentCount.innerText=p;absentCount.innerText=a;
+ document.getElementById('presentCount').innerText=p;
+ document.getElementById('absentCount').innerText=a;
 }
 
 function downloadCSV(){
  let csv='ID,Name,Department,Date,CheckIn,CheckOut,Status\n';
- employees.forEach(e=>{
-   csv+=`${e.id},${e.name},${e.dept},${e.date},${e.in},${e.out},${e.status}\n`;
- });
+ employees.forEach(e=>{csv+=`${e.id},${e.name},${e.dept},${e.date},${e.in},${e.out},${e.status}\n`;});
  let blob=new Blob([csv],{type:'text/csv'});
  let a=document.createElement('a');
  a.href=URL.createObjectURL(blob);
